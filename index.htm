@@ -64,7 +64,14 @@
       <p id="message" hidden aria-hidden="true">
         Your browser doesn't support Speech Recognition. Sorry.
       </p>
+      <div>
+        <select name="voices" id="voices"></select>
+        <button id="say_btn" disabled>Say it</button>
+    </div>
+
     </main>
+    
+    </body>
     <footer>
       <p>ASR Demo</p>
     </footer>
@@ -102,6 +109,8 @@
               p.appendChild(text);
               result.appendChild(p);
             }
+            if (result.innerHTML.length > 1) { document.getElementById("say_btn").disabled = false;}
+            else { document.getElementById("say_btn").disabled = true;}
           };
           recognition.lang = 'zh-CN';
           var grammar = '#JSGF V1.0; grammar songs; public <song> = 紫| 竹 | 调 | 月亮 | 我的心 | 雷曼 | 情感 | 计算 ;'
@@ -123,5 +132,62 @@
         }
       });
     </script>
+
+
+
+<script>
+
+const voiceSelect = document.getElementById('voices');
+        let voices;
+        let currentVoice;
+
+    const populateVoices = () => {
+          const availableVoices = speechSynthesis.getVoices();
+          voiceSelect.innerHTML = '';
+
+          availableVoices.forEach(voice => {
+            const option = document.createElement('option');
+            let optionText = `${voice.name} (${voice.lang})`;
+            if (voice.default) {
+              optionText += ' [default]';
+              if (typeof currentVoice === 'undefined') {
+                currentVoice = voice;
+                option.selected = true;
+              }
+            }
+            if (currentVoice === voice) {
+              option.selected = true;
+            }
+            option.textContent = optionText;
+            voiceSelect.appendChild(option);
+          });
+          voices = availableVoices;
+        };
+        populateVoices();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+          speechSynthesis.onvoiceschanged = populateVoices;
+        }
+        voiceSelect.addEventListener('change', event => {
+          const selectedIndex = event.target.selectedIndex;
+          currentVoice = voices[selectedIndex];
+        });
+
+    const say_btn = document.getElementById("say_btn");
+    say_btn.addEventListener("click", event => {
+        string_to_speak = document.getElementById("result").innerText;
+        //console.log(string_to_speak);
+        synth_test(string_to_speak);
+        });
+
+    function synth_test(string_to_speak)
+    {
+        var utterThis = new SpeechSynthesisUtterance(string_to_speak);
+
+        var synth = window.speechSynthesis;
+        utterThis.voice = currentVoice;
+        synth.speak(utterThis);
+    }
+
+  </script>
   </body>
 </html>
