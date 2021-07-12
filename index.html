@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=0">
+    <link rel="stylesheet" href="assets/css/w3.css">
+    <link rel="stylesheet" href="assets/css/w3-theme-black.css">
+    <link rel="stylesheet" href="assets/css/main.css">
+    <title>ASR</title>
+    <style>
+        * {
+        box-sizing: border-box;
+        font-family: Arial, Helvetica, sans-serif;
+        }
+
+        body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .topnav {
+        overflow: hidden;
+        background-color: #333;
+        }
+
+        .topnav a {
+        float: left;
+        display: block;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        text-decoration: none;
+        }
+
+        .topnav a:hover {
+        background-color: #ddd;
+        color: black;
+        }
+        
+        .footer {
+        background-color: #000000;
+        padding: 10px;
+        text-align: center;
+        padding: 14px 16px;
+        font-size: 10px;
+        color: rgb(167, 167, 167);
+        }
+
+        .center-content {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+    </style>
+  </head>
+  <body class="w3-black">
+    <header>
+      <h1>Speech recognition</h1>
+    </header>
+    <main>
+      <button id="button">Start listening</button>
+      <div id="result"></div>
+      <p id="message" hidden aria-hidden="true">
+        Your browser doesn't support Speech Recognition. Sorry.
+      </p>
+    </main>
+    <footer>
+      <p>ASR Demo</p>
+    </footer>
+    <script>
+      window.addEventListener("DOMContentLoaded", () => {
+        const button = document.getElementById("button");
+        const result = document.getElementById("result");
+        const main = document.getElementsByTagName("main")[0];
+        let listening = false;
+        const SpeechRecognition =  window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (typeof SpeechRecognition !== "undefined")
+        {
+          const recognition = new SpeechRecognition();
+
+          const stop = () => {
+            main.classList.remove("speaking");
+            recognition.stop();
+            button.textContent = "Start listening";
+          };
+
+          const start = () => {
+            main.classList.add("speaking");
+            recognition.start();
+            button.textContent = "Stop listening";
+          };
+
+          const onResult = event => {
+            result.innerHTML = "";
+            for (const res of event.results) {
+              const text = document.createTextNode(res[0].transcript);
+              const p = document.createElement("p");
+              if (res.isFinal) {
+                p.classList.add("final");
+              }
+              p.appendChild(text);
+              result.appendChild(p);
+            }
+          };
+          recognition.lang = 'zh-CN';
+          var grammar = '#JSGF V1.0; grammar songs; public <song> = 紫| 竹 | 调 | 月亮 | 我的心 | 雷曼 | 情感 | 计算 ;'
+
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.addEventListener("result", onResult);
+          button.addEventListener("click", event => {
+            listening ? stop() : start();
+            listening = !listening;
+          });
+        }
+        else
+        {
+          button.remove();
+          const message = document.getElementById("message");
+          message.removeAttribute("hidden");
+          message.setAttribute("aria-hidden", "false");
+        }
+      });
+    </script>
+  </body>
+</html>
