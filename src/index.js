@@ -7,7 +7,7 @@ function setup()
 {
     console.log(window.location.pathname);
     const this_path = window.location.pathname;
-    if(this_path=="/design.htm" || this_path=="/design")
+    if(this_path.indexOf("/design")>=0) 
         DS.DesignerSetup();
     else
         SR.SpeechRecSetup();
