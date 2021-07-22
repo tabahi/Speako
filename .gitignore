@@ -10,6 +10,7 @@ server.bat
 .vscode
 *.code-workspace
 **/node_modules/
+**/package-lock.json
 log.txt
 
 # Logs

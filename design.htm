@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="assets/css/w3.css">
     <link rel="stylesheet" href="assets/css/w3-theme-black.css">
     <link rel="stylesheet" href="assets/css/main.css">
-    <title>Bot Conversation Test</title>
+    <title>Bot Conversation Designer</title>
     <style>
         * {
         box-sizing: border-box;
@@ -58,16 +58,13 @@
           height: 550px;
           width:400px; 
           padding:1px; 
-          border-radius: 10px;
           margin: auto;
-            background:rgb(3, 102, 216);
+            background:rgb(48, 48, 48);
         }
         .ChatContent
         {
           height:490px;
           background:rgb(0, 0, 0);
-          
-          border-radius: 10px;
           padding-right: 10px;
           padding-left: 10px;
           overflow-y:scroll;
@@ -111,51 +108,34 @@
   </head>
   <body class="w3-black">
     <div class="topnav">
-      <a  class="w3-right w3-hover-deep-orange w3-text-lime" href="./design.htm">Design</a>
-      <h5 id="app_title" class="w3-margin-left w3-text-white">Bot Conversation Test</h5>
+      <a  class="w3-right w3-hover-deep-orange w3-text-lime" href="./">Test</a>
+      <h5 id="app_title" class="w3-margin-left w3-text-white">Bot Conversation Designer</h5>
   </div>
 
 
   <div class="w3-container w3-bottombar w3-border-dark-gray"> <!-- Main body container -->
-
-      <div class="FixedHeightContainer w3-animate-zoom w3-center">
-          <p>Conversation</p>
-          <div class="ChatContent" id="chatdiv"> </div>
-      </div>
-
     
-
-   
-
-    <div class="w3-row w3-center w3-animate-right">
-        <p id="msg">Loading...</p>
-        
+    <div style="width: 100%; display: flex; justify-content: space-between">
+      <div id="myPaletteDiv" style="width: 100px; margin-right: 2px; background-color: rgb(120, 120, 120); border: solid 1px black"></div>
+      <div id="myDiagramDiv" style="flex-grow: 1; height: 580px; border: solid 1px black"></div>
     </div>
-      
 
-      
-      <div class="w3-row-padding w3-center w3-animate-left">     <!-- Buttons -->
+
+    <div>
+      <button id="SaveButton" onclick="Speako.DS_btn('save')" class="w3 w3-small w3-button w3-border w3-border-green" title="Save the edited diagram in JSON below and update bot model.">Save</button>
+      <button onclick="Speako.DS_btn('load')" class="w3 w3-small w3-button w3-border w3-border-dark-grey" title="Load the JSON edited below in the diagram above.">Load</button>
+      <button onclick="Speako.DS_btn('reset')" class="w3 w3-small w3-button w3-border w3-border-dark-grey w3-hover-red" title="Clear changes and reload the default model again.">Reset</button>
+      <button onclick="Speako.DS_btn('layout')" class="w3 w3-small w3-button w3-border w3-border-dark-purple" title="Realign the diagram.">Layout</button>
+      Diagram Model saved in JSON format:
+      <br />
+      <textarea id="mySavedModel" class="w3 w3-small w3-dark-input" style="width:100%;height:300px">
         
-          <input type="text" id="speechbox" class="w3-dark-input w3-border w3-border-blue w3-padding" style="width: 70%;max-width: 400px;" readonly>
-        
-          <input type="button" id="mic_button" onclick="Speako.start_btn_click()" value="Start" class="w3-button w3-wide w3-blue w3-padding w3-round" disabled>
-        
-      </div>
-      <div class="w3-row w3-center w3-padding-small w3-animate-left">
-        <select name="voices" id="voices" class="w3-dark-input "></select>
-      </div>
-      
-      
-      
+      </textarea>
+    </div>
 
-    </div>  <!-- Main body container ends -->
+  </div>  <!-- Main body container ends -->
 
-   
-      
-      
 
-    
-    
     <div class="footer">
       <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">
           

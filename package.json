@@ -1,0 +1,30 @@
+{
+  "name": "Speako",
+  "version": "1.0.0",
+  "description": "#An opinionated AI assistant",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "webpack serve",
+    "build": "webpack"
+  },
+  "devDependencies": {
+    "webpack": "^5.45.1",
+    "webpack-cli": "^4.7.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tabahi/Speako.git"
+  },
+  "keywords": [],
+  "author": "Abdul Rehman (Tabahi)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tabahi/Speako/issues"
+  },
+  "homepage": "https://github.com/tabahi/Speako#readme",
+  "dependencies": {
+    "gojs": "^2.1.46",
+    "webpack-dev-server": "^3.11.2"
+  }
+}
