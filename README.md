@@ -29,4 +29,4 @@ npm install webpack-dev-server
 npm run dev
 ```
 
-Dependency: GoJS 2.1
+Dependency: [GoJS 2.1](https://gojs.net/)

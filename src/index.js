@@ -22,13 +22,28 @@ export function start_btn_click()
     SR.start_btn_click();
 }
 
+export function send_btn_click()
+{
+    SR.human_text_response(document.getElementById("speechbox").value);
+}
+
+export function chat_key_press(event)
+{
+    if (event.keyCode == 13)
+    {
+        SR.human_text_response(document.getElementById("speechbox").value);
+    }
+}
+
+export function voice_select_change(isChecked)
+{
+    SR.voice_select_change(isChecked);
+}
 
 export function DS_btn(btn_name)
 {
     DS.DS_btn(btn_name);
 }
-
-
 
 
 

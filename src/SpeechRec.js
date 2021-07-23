@@ -3,53 +3,55 @@ const SpeechRecognition =  window.SpeechRecognition || window.webkitSpeechRecogn
 const SpeechGrammarListx =  window.SpeechGrammarList || window.webkitSpeechGrammarList;
 
 var recognition = null;
-const lang_set = "en-US";   //zh-CN
+var lang_set = "en";   //zh-CN
 
 
 const DS = require('./design.js');
 
-var mic_running = false;
+var speaker_turn = false;
+var voiced = false;
 export var flag = 0;
 
 
 export function SpeechRecSetup()
 {
+    flag_set(0);
+    voice_select_change();
     setup_voice_selector();
     //window.addEventListener("DOMContentLoaded", () => {
     
-    const speechbox = document.getElementById("speechbox");
+    document.getElementById("start_button").disabled = false;
+    document.getElementById("msg").innerText = "Press Start to start the conversation";
+}
 
+function speech_recognition_onresult(e)
+{
+    const speechbox = document.getElementById("speechbox");
+    speechbox.value = "";
+    for (const res of e.results)
+    {
+        if (res.isFinal)
+        {
+            //speechbox.value += "\n";
+            
+            convo_texts.push(res[0].transcript);
+            convo_sources.push(2);
+            load_frame();
+            flag_set(2);
+            intelli_respond();
+        }
+        speechbox.value += res[0].transcript;
+    }
+}
+
+function define_speech_recognition()
+{
     if (typeof SpeechRecognition !== "undefined")
     {
-        document.getElementById("msg").innerText = "Press Start then start talking.";
-        document.getElementById("mic_button").disabled = false;
+        recognition = null;
         recognition = new SpeechRecognition();
-
-        
-        const onResult = event => {
-        speechbox.value = "";
-        for (const res of event.results)
-        {
-            //const text = document.createTextNode(res[0].transcript);
-            //const p = document.createElement("p");
-            if (res.isFinal)
-            {
-                //speechbox.value += "\n";
-                
-                convo_texts.push(res[0].transcript);
-                convo_sources.push(2);
-                load_frame();
-                flag_set(2);
-                intelli_respond();
-            }
-            
-            speechbox.value += res[0].transcript;
-            
-            //p.appendChild(text);
-            //result.appendChild(p);
-        }
-        
-        };
+        const onResult = event => {  speech_recognition_onresult(event); };
+        lang_set = document.getElementById("lang_set").value;
         recognition.lang = lang_set;
         var grammar = '#JSGF V1.0; grammar songs; public <song> = 紫| 竹 | 调 | 月亮 | 我的心 | 雷曼 | 情感 | 计算 ;';
         var speechRecognitionList = new SpeechGrammarListx();
@@ -61,24 +63,39 @@ export function SpeechRecSetup()
         recognition.interimResults = true;
         recognition.addEventListener("result", onResult);
         recognition.onend = function() {
-            if(speechbox.value.length<1)
-            {
-                document.getElementById("msg").innerText = "I didn't hear anything. Start again.";
-                flag_set(0);
+                if(document.getElementById("speechbox").value.length<1)
+                {
+                    document.getElementById("msg").innerText = "I didn't hear anything. Start again.";
+                    flag_set(0);
+                }
+                else document.getElementById("speechbox").value = "";
             }
-            else speechbox.value = "";
-            }
-        
+    }
+}
+
+export function voice_select_change(isChecked=document.getElementById("voice_enable_check").isChecked)
+{
+    voiced = isChecked;
+    if(voiced)
+    {
+        if (typeof SpeechRecognition !== "undefined")
+        {
+            document.getElementById("speechbox").readOnly = true;
+            document.getElementById("msg").innerText = "Voiced conversation enabled";
+        }
+        else
+        {
+            document.getElementById("voice_enable_check").checked = false;
+            voiced = false;
+            document.getElementById("msg").innerText = "Your browser doesn't support Speech Recognition.";
+        }
     }
     else
     {
-        document.getElementById("msg").innerText = "Your browser doesn't support Speech Recognition. Try Chrome or Edge.";
-        document.getElementById("mic_button").disabled = true;
+        document.getElementById("speechbox").readOnly = false;
+        document.getElementById("msg").innerText = "Voiced conversation disabled";
     }
-    //});
 }
-
-
 
 
 
@@ -90,20 +107,49 @@ function intelli_respond()
         if(convo_sources[i]==2) //latest reply from human
         {
             const reply = find_bot_reply_to_human(convo_texts[i].toLowerCase());
-            
-            convo_texts.push(reply);
-            convo_sources.push(1);
-            synth_test(reply);
+            bot_says(reply);
             break;
         }
     }
 }
 
 
+function bot_says(string_to_speak)
+{
+    convo_texts.push(string_to_speak);
+    convo_sources.push(1);
+
+    if(voiced)
+    {
+        if(flag!=0) document.getElementById("msg").innerText = "Speaking...";
+        var utterThis = new SpeechSynthesisUtterance(string_to_speak);
+        utterThis.lang = lang_set;
+
+        var synth = window.speechSynthesis;
+        utterThis.voice = currentVoice;
+        utterThis.addEventListener('end', function(event) {
+            //console.log('Utterance time ' + event.elapsedTime + ' ms.');
+            if(flag!=0)
+            {
+                document.getElementById("msg").innerText = "Listening...";
+                flag_set(1);
+            }
+            load_frame();
+        });
+        synth.speak(utterThis);
+    }
+    else
+    {
+        if(flag!=0) flag_set(1);
+        load_frame();
+    }
+}
+
+
+
 export function start_btn_click()
 {
-    if(recognition)
-    if(mic_running)
+    if(flag!=0)
         flag_set(0);
     else
         flag_set(2);
@@ -112,39 +158,70 @@ export function start_btn_click()
 
 function flag_set(flag_val)
 {
+    
     if(flag_val==0)  //stopped
     {
-        mic_running = false;
-        document.getElementById("mic_button").value = "Start";
-        document.getElementById("mic_button").className = "w3-button w3-wide w3-blue w3-padding w3-round";
+        speaker_turn = false;
+        document.getElementById("start_button").value = "Start";
+        document.getElementById("start_button").className = "w3-button w3-wide w3-green w3-padding w3-round";
+        
+        if(flag==1) document.getElementById("msg").innerText = "Bot stopped";   //otherwise it shows session over
         flag = flag_val;
-        if(recognition) recognition.stop();
+        if((voiced) && (recognition)) recognition.stop();
+        else if (!voiced) document.getElementById("send_button").disabled = true;
+        document.getElementById("voice_enable_check").disabled = false;
+        recognition = null;
     }
     else if(flag_val==1)    //human speaking
     {
-        mic_running = true;
-        document.getElementById("mic_button").value = "Stop";
-        document.getElementById("mic_button").className = "w3-button w3-wide w3-red w3-padding w3-round";
-        recognition.start();
+        speaker_turn = true;
+        
+        document.getElementById("start_button").value = "Stop";
+        document.getElementById("start_button").className = "w3-button w3-wide w3-red w3-padding w3-round";
+        
+        
+        if((voiced) && (recognition)) recognition.start();
+        else if (!voiced) document.getElementById("send_button").disabled = false;
         flag = flag_val;
-        document.getElementById("msg").innerText = "Listening...";
+        
     }
     else if(flag_val==2) //bot speaking
     {
+        speaker_turn = false;
+        
+        if((voiced) && (recognition)) recognition.stop();
+        else if (!voiced) document.getElementById("send_button").disabled = true;
         if(flag==0) //first bot sentence
         {
+            flag = flag_val;
+            document.getElementById("start_button").value = "Stop";
+            document.getElementById("start_button").className = "w3-button w3-wide w3-red w3-padding w3-round";
+            if(voiced) define_speech_recognition();
             load_convo_model();
-            document.getElementById("mic_button").value = "Stop";
-            document.getElementById("mic_button").className = "w3-button w3-wide w3-red w3-padding w3-round";
         }
-        mic_running = false;
-        flag = flag_val;
-        if(recognition) recognition.stop();
-        document.getElementById("msg").innerText = "Speaking...";
+        else 
         
+        flag = flag_val;
+        
+        document.getElementById("voice_enable_check").disabled = true;
         
     }
 }
+
+
+export function human_text_response(send_text)
+{
+    if((speaker_turn) && (send_text.length>0))
+    {
+        convo_texts.push(send_text);
+        convo_sources.push(2);
+        flag_set(2);
+        load_frame();
+        document.getElementById("speechbox").value = "";
+        intelli_respond();
+    }
+}
+
 
 
 
@@ -187,7 +264,8 @@ let currentVoice;
 function setup_voice_selector()
 {
     const voiceSelect = document.getElementById('voices');
-
+    
+    lang_set = document.getElementById("lang_set").value;
     const populateVoices = () => {
         if(voiceSelect)
         {
@@ -203,7 +281,7 @@ function setup_voice_selector()
             if (voice.default) {
                 optionText += ' [default]';
             }
-    
+            
             if((currentVoice === voice) || ((!selected_done) && (voice.lang==lang_set)))
             {
                 currentVoice = voice;
@@ -231,23 +309,6 @@ function setup_voice_selector()
 }
 
 
-
-function synth_test(string_to_speak)
-{
-    var utterThis = new SpeechSynthesisUtterance(string_to_speak);
-    utterThis.lang = lang_set;
-
-    var synth = window.speechSynthesis;
-    utterThis.voice = currentVoice;
-    utterThis.addEventListener('end', function(event) {
-        //console.log('Utterance time ' + event.elapsedTime + ' ms.');
-        if(flag!=0) flag_set(1);
-        load_frame();
-      });
-    synth.speak(utterThis);
-}
-
-
 var convo_texts = [];
 var convo_sources = [];
 
@@ -265,7 +326,6 @@ function find_bot_reply_to_human(input_text)
 
     if(possible_keys.length<=0) //dead end
     {
-        last_bot_node = start_bot_node;
         return "This session is over. Please restart to start again.";
     }
 
@@ -373,6 +433,8 @@ function load_convo_model()
     let stored_model = window.localStorage.getItem(localstorekey);
     if(!stored_model)
     {
+        
+        document.getElementById("msg").innerText = "Loading bot...";
         DS.model_load_from_url(null, true).then(function ()
         {
             convo_texts.push("Using default conversation model.");
@@ -392,12 +454,13 @@ function load_convo_model()
             {
                 convo_model = stored_model;
 
-                convo_texts.push(convo_model.nodeDataArray[i].text);
-                convo_sources.push(1);
+                //convo_texts.push(convo_model.nodeDataArray[i].text);
+                //convo_sources.push(1);
                 start_bot_node = convo_model.nodeDataArray[i].key;
                 last_bot_node = start_bot_node;
-                load_frame();
-                synth_test(convo_model.nodeDataArray[i].text);
+                //load_frame();
+                bot_says(convo_model.nodeDataArray[i].text);
+                document.getElementById("msg").innerText = "Bot started";
                 break;
             }
         }
