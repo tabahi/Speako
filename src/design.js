@@ -1,25 +1,29 @@
 
 
 const go = require('gojs');
-const default_model_url = "./model.json";
 var myDiagram;
-const localstorekey = "model";
 var $;
+var default_model_url = null;
+var local_model_id = null;
 
-export function DesignerSetup()
-{
-    init();
-}
+export function DesignerSetup(local_model='convo_model', model_url='./model.json') {
 
+    default_model_url = model_url;
+    local_model_id = local_model;
+    
+    console.log("Default model: ", default_model_url, "Memory model: ", local_model_id);
 
+    let lang_set = window.localStorage.getItem('convo_lang');
+    if(!lang_set) window.localStorage.setItem('convo_lang', 'en-US');
+    document.getElementById('lang_set').value = window.localStorage.getItem('convo_lang');
+    
 
-function init() {
     $ = go.GraphObject.make;  // for conciseness in defining templates
 
     var yellowgrad = $(go.Brush, { color: "yellow" });
     var greengrad = $(go.Brush, { color: "palegreen" });
     var bluegrad = $(go.Brush, { color: "#99E9FF" });
-    var redgrad = $(go.Brush, { color: "#950000" });
+    var redgrad = $(go.Brush, { color: "#FFA066" });
     var whitegrad = $(go.Brush, "Linear", { 0: "#F0F8FF", 1: "#E6E6FA" });
 
     var bigfont = "12pt Helvetica, Arial, sans-serif";
@@ -59,6 +63,19 @@ function init() {
       }
     });
 
+    var possibilitiesTemplate = $(go.Panel, "Horizontal",
+      $(go.TextBlock, "Text",
+        {
+          margin: new go.Margin(4, 2, 0, 2),
+          maxSize: new go.Size(200, NaN),
+          wrap: go.TextBlock.WrapFit,
+          stroke: "black",
+          editable: true,
+          font: smallfont
+        },
+        new go.Binding("text", "text").makeTwoWay())
+    );
+
     var humanAdornment =
       $(go.Adornment, "Spot",
         $(go.Panel, "Auto",
@@ -72,6 +89,14 @@ function init() {
           },  // this function is defined below
           new go.Binding("visible", "", function(a) { return !a.diagram.isReadOnly; }).ofObject(),
           $(go.Shape, "PlusLine", { desiredSize: new go.Size(6, 6) })
+        ),
+        $("Button",
+          {
+            alignment: go.Spot.BottomRight,
+            click: addPossibilities
+          },  // this function is defined below
+          new go.Binding("visible", "", function(a) { return !a.diagram.isReadOnly; }).ofObject(),
+          $(go.Shape, "TriangleDown", { desiredSize: new go.Size(10, 10) })
         )
       );
     var botAdornment =
@@ -112,15 +137,29 @@ function init() {
 
     myDiagram.nodeTemplateMap.add("Human",
           $(go.Node, "Auto",
-          { selectionAdornmentTemplate: botAdornment },
+          { selectionAdornmentTemplate: humanAdornment },
             new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
             $(go.Shape, "Rectangle",
               {
                 fill: yellowgrad,
                 portId: "", fromLinkable: true, toLinkable: true, cursor: "pointer", fromEndSegmentLength: 40
               }),
-            $(go.TextBlock, "Human", textStyle(),
-              new go.Binding("text", "text").makeTwoWay())
+              $(go.Panel, "Vertical", { defaultAlignment: go.Spot.TopLeft },
+              $(go.TextBlock, "Human", textStyle(),
+              {
+                stroke: "black",
+                minSize: new go.Size(80, NaN)
+              },
+              new go.Binding("text", "text").makeTwoWay()),
+
+              $(go.Panel, "Vertical",
+                {
+                  defaultAlignment: go.Spot.TopLeft,
+                  itemTemplate: possibilitiesTemplate
+                },
+                new go.Binding("itemArray", "possibilitiesList").makeTwoWay()
+              )
+            )
           ));
 
     myDiagram.nodeTemplateMap.add("Bot",
@@ -140,9 +179,9 @@ function init() {
       $(go.Node, "Auto",
       { selectionAdornmentTemplate: botAdornment },
         new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
-        $(go.Shape, "Rectangle",
+        $(go.Shape, "RoundedRectangle",
           {
-            fill: "#FEFFF2",
+            fill: "#C787FF",
             portId: "", fromLinkable: true, toLinkable: false, cursor: "pointer", fromEndSegmentLength: 40
           }),
         $(go.TextBlock, "Bot Start", textStyle(),
@@ -155,7 +194,7 @@ function init() {
         new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
         $(go.Shape, "RoundedRectangle",
           {
-            fill: "#2684FF",
+            fill: "#D1D1D1",
             portId: "", fromLinkable: false, toLinkable: true, cursor: "pointer", fromEndSegmentLength: 40
           }),
         $(go.TextBlock, "Bot fallback", textStyle(),
@@ -163,17 +202,8 @@ function init() {
       ));
 
 
-    myDiagram.nodeTemplateMap.add("DesiredEvent",
-      $(go.Node, "Auto",
-        new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
-        $(go.Shape, "RoundedRectangle",
-          { fill: greengrad, portId: "", toLinkable: true, toEndSegmentLength: 50 }),
-        $(go.TextBlock, "Desired Out", textStyle(),
-          new go.Binding("text", "text").makeTwoWay())
-      ));
-
-    // Undesired events have a special adornment that allows adding additional "reasons"
-    var UndesiredEventAdornment =
+    // Undesired events have a special adornment that allows adding additional "possibilitiess"
+    var EventAdornment =
       $(go.Adornment, "Spot",
         $(go.Panel, "Auto",
           $(go.Shape, { fill: null, stroke: "dodgerblue", strokeWidth: 4 }),
@@ -182,38 +212,54 @@ function init() {
         $("Button",
           {
             alignment: go.Spot.BottomRight,
-            click: addReason
+            click: addPossibilities
           },  // this function is defined below
           new go.Binding("visible", "", function(a) { return !a.diagram.isReadOnly; }).ofObject(),
           $(go.Shape, "TriangleDown", { desiredSize: new go.Size(10, 10) })
         )
       );
 
-    var reasonTemplate = $(go.Panel, "Horizontal",
-      $(go.TextBlock, "Reason",
-        {
-          margin: new go.Margin(4, 0, 0, 0),
-          maxSize: new go.Size(200, NaN),
-          wrap: go.TextBlock.WrapFit,
-          stroke: "whitesmoke",
-          editable: true,
-          font: smallfont
-        },
-        new go.Binding("text", "text").makeTwoWay())
-    );
+    myDiagram.nodeTemplateMap.add("DesiredEvent",
+        $(go.Node, "Auto",
+        { selectionAdornmentTemplate: EventAdornment },
+          new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
+          $(go.Shape, "RoundedRectangle",
+          { fill: greengrad, portId: "", fromLinkable: false, toLinkable: true, toEndSegmentLength: 50 }),
+
+          $(go.Panel, "Vertical", { defaultAlignment: go.Spot.TopLeft },
+          $(go.TextBlock, "Desired Out", textStyle(),
+          {
+            stroke: "black",
+            minSize: new go.Size(80, NaN)
+          },
+          new go.Binding("text", "text").makeTwoWay()),
+
+          $(go.Panel, "Vertical",
+            {
+              defaultAlignment: go.Spot.TopLeft,
+              itemTemplate: possibilitiesTemplate
+            },
+            new go.Binding("itemArray", "possibilitiesList").makeTwoWay()
+          )
+          )
+        ));
+
+    
+
+    
 
 
     myDiagram.nodeTemplateMap.add("UndesiredEvent",
       $(go.Node, "Auto",
         new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
-        { selectionAdornmentTemplate: UndesiredEventAdornment },
+        { selectionAdornmentTemplate: EventAdornment },
         $(go.Shape, "RoundedRectangle",
           { fill: redgrad, portId: "", toLinkable: true, toEndSegmentLength: 50 }),
         $(go.Panel, "Vertical", { defaultAlignment: go.Spot.TopLeft },
 
           $(go.TextBlock, "Drop", textStyle(),
             {
-              stroke: "whitesmoke",
+              stroke: "black",
               minSize: new go.Size(80, NaN)
             },
             new go.Binding("text", "text").makeTwoWay()),
@@ -221,9 +267,9 @@ function init() {
           $(go.Panel, "Vertical",
             {
               defaultAlignment: go.Spot.TopLeft,
-              itemTemplate: reasonTemplate
+              itemTemplate: possibilitiesTemplate
             },
-            new go.Binding("itemArray", "reasonsList").makeTwoWay()
+            new go.Binding("itemArray", "possibilitiesList").makeTwoWay()
           )
         )
       ));
@@ -246,14 +292,14 @@ function init() {
       ));
 
     // clicking the button on an UndesiredEvent node inserts a new text object into the panel
-    function addReason(e, obj) {
+    function addPossibilities(e, obj) {
       var adorn = obj.part;
       if (adorn === null) return;
       e.handled = true;
-      var arr = adorn.adornedPart.data.reasonsList;
-      myDiagram.startTransaction("add reason");
+      var arr = adorn.adornedPart.data.possibilitiesList;
+      myDiagram.startTransaction("add possibilities");
       myDiagram.model.addArrayItem(arr, {});
-      myDiagram.commitTransaction("add reason");
+      myDiagram.commitTransaction("add possibilities");
     }
 
     // clicking the button of a default node inserts a new node to the right of the selected node,
@@ -296,7 +342,7 @@ function init() {
         var fromNode = adorn.adornedPart;
         var fromData = fromNode.data;
         // create a new "State" data object, positioned off to the right of the adorned Node
-        var toData = {category: "Human", text: "new" };
+        var toData = {category: "Human", possibilitiesList: [{}] };
         var p = fromNode.location;
         toData.loc = p.x + 200 + " " + p.y;  // the "loc" property is a string, not a Point object
         // add the new node data to the model
@@ -343,13 +389,13 @@ function init() {
       { category: "Bot Start" },
       { category: "Bot" },
       { category: "Bot fallback" },
-      { category: "Human" },
-      { category: "DesiredEvent" },
-      { category: "UndesiredEvent", reasonsList: [{}] },
+      { category: "Human", possibilitiesList: [{}]},
+      { category: "DesiredEvent", possibilitiesList: [{}] },
+      { category: "UndesiredEvent", possibilitiesList: [{}] },
       { category: "Comment" }
     ];
 
-    const stored_model = window.localStorage.getItem(localstorekey);
+    const stored_model = window.localStorage.getItem(local_model_id);
     if(stored_model)
     {
         document.getElementById("mySavedModel").value = stored_model;
@@ -358,7 +404,7 @@ function init() {
     }
     else
     {
-        model_load_from_url(default_model_url);
+        model_load_from_url(default_model_url, local_model_id);
     }
 }
 
@@ -374,30 +420,30 @@ function save()
     myDiagram.isModified = false;
 
     //store to localstore
-    window.localStorage.setItem(localstorekey, document.getElementById("mySavedModel").value);
+    window.localStorage.setItem(local_model_id, document.getElementById("mySavedModel").value);
 }
 
 function reset()
 {
-    if (confirm("Are you sure to reset the model?"))
+    if (confirm("It will reset both the saved model and the code in the editor. Are you sure to reset the default model?"))
     {
-        window.localStorage.removeItem(localstorekey);
-        model_load_from_url(default_model_url);
+        window.localStorage.removeItem(local_model_id);
+        model_load_from_url(default_model_url, local_model_id);
     }
 }
 
 function load() {
     myDiagram.model = go.Model.fromJson(document.getElementById("mySavedModel").value);
+    window.localStorage.setItem(local_model_id, document.getElementById("mySavedModel").value);
 }
 
-export function load_default()
-{
-    model_load_from_url(default_model_url);
-}
 
-export function model_load_from_url(model_url, local_save=false)
+
+export function model_load_from_url(model_url, mem_model_id, local_save=false)
 {
-    if(model_url==null) model_url = default_model_url;
+    console.log("Loading from URL", model_url, mem_model_id);
+    if(model_url==null) { model_url = default_model_url; }
+    if(mem_model_id==null){  mem_model_id = local_model_id;}
 
     return new Promise((resolve, reject)=>{
 
@@ -406,7 +452,8 @@ export function model_load_from_url(model_url, local_save=false)
             return response.text().then(function(text) {
                 if(local_save)
                 {
-                    window.localStorage.setItem(localstorekey, text);
+                    window.localStorage.setItem(mem_model_id, text);
+                    console.log("mem saved", mem_model_id);
                     resolve(1);
                 }
                 else
@@ -434,3 +481,10 @@ export function DS_btn(btn_name)
     else if(btn_name=="load") load();
     else if(btn_name=="reset") reset();
 }
+
+
+export function DS_lang_change(lang_val)
+{
+  window.localStorage.setItem('convo_lang', lang_val);
+}
+

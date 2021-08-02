@@ -1,30 +1,115 @@
 
-const SpeechRecognition =  window.SpeechRecognition || window.webkitSpeechRecognition;
-const SpeechGrammarListx =  window.SpeechGrammarList || window.webkitSpeechGrammarList;
-
-var recognition = null;
-var lang_set = "en";   //zh-CN
 
 
 const DS = require('./design.js');
+const SP = require('./speech.js');
 
 var speaker_turn = false;
 var voiced = false;
-export var flag = 0;
+export var flag = 0;    //state change tracking flag
 
+var default_model_url = null;
+var local_model_id = null;
 
-export function SpeechRecSetup()
+export function ConvoSetup(local_model='convo_model', model_url='./model.json')
 {
-    flag_set(0);
-    voice_select_change();
-    setup_voice_selector();
-    //window.addEventListener("DOMContentLoaded", () => {
     
+    default_model_url = model_url;
+    local_model_id = local_model;
+    console.log("Using model: ", default_model_url, local_model_id);
+    
+    SP.SpeechSetup();
+    
+    flag_set(0);
+    voice_enabled();
     document.getElementById("start_button").disabled = false;
     document.getElementById("msg").innerText = "Press Start to start the conversation";
 }
 
-function speech_recognition_onresult(e)
+
+function process_command(event_node_text)
+{
+    console.log(event_node_text);
+    if(event_node_text.indexOf('='))
+        if(event_node_text.indexOf('URL')>=0)   //URL command
+            window.location.replace(event_node_text.split('=')[1], '_blank');
+
+}
+
+export function start_btn_click()
+{
+    if(flag!=0)
+        flag_set(0);
+    else
+        flag_set(2);
+}
+
+
+function flag_set(flag_val) //state change tracking function
+{
+    
+    if(flag_val==0)  //stopped
+    {
+        speaker_turn = false;
+        document.getElementById("start_button").value = "Start";
+        document.getElementById("start_button").className = "w3-button w3-wide w3-green w3-padding w3-round";
+        if(flag==1) document.getElementById("msg").innerText = "Bot stopped";   //otherwise it shows session over
+
+        flag = flag_val;
+        
+        if(voiced) SP.Stop_Rec();
+        else if (!voiced) document.getElementById("send_button").disabled = true;
+        document.getElementById("voice_enable_check").disabled = false;
+    }
+    else if(flag_val==1)    //human speaking turn
+    {
+        speaker_turn = true;
+        
+        document.getElementById("start_button").value = "Stop";
+        document.getElementById("start_button").className = "w3-button w3-wide w3-red w3-padding w3-round";
+        
+        
+        if(voiced) SP.Start_Rec();
+        else if (!voiced) document.getElementById("send_button").disabled = false;
+        flag = flag_val;
+        
+    }
+    else if(flag_val==2) //bot speaking turn
+    {
+        speaker_turn = false;
+        
+        if(voiced) SP.Stop_Rec();
+        else if (!voiced) document.getElementById("send_button").disabled = true;
+        if(flag==0) //first bot sentence
+        {
+            flag = flag_val;
+            document.getElementById("start_button").value = "Stop";
+            document.getElementById("start_button").className = "w3-button w3-wide w3-red w3-padding w3-round";
+            
+            
+            if(voiced) SP.define_speech_recognition(human_speech_response, on_human_speech_response_end);
+            load_convo_model();
+        }
+        else 
+        
+        flag = flag_val;
+        
+        document.getElementById("voice_enable_check").disabled = true;
+        
+    }
+}
+
+function on_human_speech_response_end()
+{
+    if(document.getElementById("speechbox").value.length<1)
+    {
+        document.getElementById("msg").innerText = "I didn't hear anything. Start again.";
+        flag_set(0);
+    }
+    else document.getElementById("speechbox").value = "";
+}
+
+function human_speech_response(e)
 {
     const speechbox = document.getElementById("speechbox");
     speechbox.value = "";
@@ -36,7 +121,7 @@ function speech_recognition_onresult(e)
             
             convo_texts.push(res[0].transcript);
             convo_sources.push(2);
-            load_frame();
+            update_chatbox();
             flag_set(2);
             intelli_respond();
         }
@@ -44,58 +129,20 @@ function speech_recognition_onresult(e)
     }
 }
 
-function define_speech_recognition()
-{
-    if (typeof SpeechRecognition !== "undefined")
-    {
-        recognition = null;
-        recognition = new SpeechRecognition();
-        const onResult = event => {  speech_recognition_onresult(event); };
-        lang_set = document.getElementById("lang_set").value;
-        recognition.lang = lang_set;
-        var grammar = '#JSGF V1.0; grammar songs; public <song> = 紫| 竹 | 调 | 月亮 | 我的心 | 雷曼 | 情感 | 计算 ;';
-        var speechRecognitionList = new SpeechGrammarListx();
-        speechRecognitionList.addFromString(grammar, 1);
-        recognition.grammars = speechRecognitionList;
-        recognition.maxAlternatives = 1;
 
-        recognition.continuous = false;
-        recognition.interimResults = true;
-        recognition.addEventListener("result", onResult);
-        recognition.onend = function() {
-                if(document.getElementById("speechbox").value.length<1)
-                {
-                    document.getElementById("msg").innerText = "I didn't hear anything. Start again.";
-                    flag_set(0);
-                }
-                else document.getElementById("speechbox").value = "";
-            }
+export function human_text_response(send_text)
+{
+    if((speaker_turn) && (send_text.length>0))
+    {
+        convo_texts.push(send_text);
+        convo_sources.push(2);
+        flag_set(2);
+        update_chatbox();
+        document.getElementById("speechbox").value = "";
+        intelli_respond();
     }
 }
 
-export function voice_select_change(isChecked=document.getElementById("voice_enable_check").isChecked)
-{
-    voiced = isChecked;
-    if(voiced)
-    {
-        if (typeof SpeechRecognition !== "undefined")
-        {
-            document.getElementById("speechbox").readOnly = true;
-            document.getElementById("msg").innerText = "Voiced conversation enabled";
-        }
-        else
-        {
-            document.getElementById("voice_enable_check").checked = false;
-            voiced = false;
-            document.getElementById("msg").innerText = "Your browser doesn't support Speech Recognition.";
-        }
-    }
-    else
-    {
-        document.getElementById("speechbox").readOnly = false;
-        document.getElementById("msg").innerText = "Voiced conversation disabled";
-    }
-}
 
 
 
@@ -122,111 +169,35 @@ function bot_says(string_to_speak)
     if(voiced)
     {
         if(flag!=0) document.getElementById("msg").innerText = "Speaking...";
-        var utterThis = new SpeechSynthesisUtterance(string_to_speak);
-        utterThis.lang = lang_set;
 
-        var synth = window.speechSynthesis;
-        utterThis.voice = currentVoice;
-        utterThis.addEventListener('end', function(event) {
-            //console.log('Utterance time ' + event.elapsedTime + ' ms.');
+        function after_speech_ends()
+        {
             if(flag!=0)
             {
                 document.getElementById("msg").innerText = "Listening...";
                 flag_set(1);
             }
-            load_frame();
-        });
-        synth.speak(utterThis);
+            update_chatbox();
+        }
+        SP.speak_this(string_to_speak, after_speech_ends);
     }
     else
     {
         if(flag!=0) flag_set(1);
-        load_frame();
+        update_chatbox();
     }
 }
 
 
 
-export function start_btn_click()
-{
-    if(flag!=0)
-        flag_set(0);
-    else
-        flag_set(2);
-}
 
 
-function flag_set(flag_val)
-{
-    
-    if(flag_val==0)  //stopped
-    {
-        speaker_turn = false;
-        document.getElementById("start_button").value = "Start";
-        document.getElementById("start_button").className = "w3-button w3-wide w3-green w3-padding w3-round";
-        
-        if(flag==1) document.getElementById("msg").innerText = "Bot stopped";   //otherwise it shows session over
-        flag = flag_val;
-        if((voiced) && (recognition)) recognition.stop();
-        else if (!voiced) document.getElementById("send_button").disabled = true;
-        document.getElementById("voice_enable_check").disabled = false;
-        recognition = null;
-    }
-    else if(flag_val==1)    //human speaking
-    {
-        speaker_turn = true;
-        
-        document.getElementById("start_button").value = "Stop";
-        document.getElementById("start_button").className = "w3-button w3-wide w3-red w3-padding w3-round";
-        
-        
-        if((voiced) && (recognition)) recognition.start();
-        else if (!voiced) document.getElementById("send_button").disabled = false;
-        flag = flag_val;
-        
-    }
-    else if(flag_val==2) //bot speaking
-    {
-        speaker_turn = false;
-        
-        if((voiced) && (recognition)) recognition.stop();
-        else if (!voiced) document.getElementById("send_button").disabled = true;
-        if(flag==0) //first bot sentence
-        {
-            flag = flag_val;
-            document.getElementById("start_button").value = "Stop";
-            document.getElementById("start_button").className = "w3-button w3-wide w3-red w3-padding w3-round";
-            if(voiced) define_speech_recognition();
-            load_convo_model();
-        }
-        else 
-        
-        flag = flag_val;
-        
-        document.getElementById("voice_enable_check").disabled = true;
-        
-    }
-}
-
-
-export function human_text_response(send_text)
-{
-    if((speaker_turn) && (send_text.length>0))
-    {
-        convo_texts.push(send_text);
-        convo_sources.push(2);
-        flag_set(2);
-        load_frame();
-        document.getElementById("speechbox").value = "";
-        intelli_respond();
-    }
-}
 
 
 
 
 var last_load_convo = 0;
-function load_frame()
+function update_chatbox()
 {
     const chatdiv = document.getElementById("chatdiv");
     
@@ -255,65 +226,10 @@ function load_frame()
 
 
 
-
-
-
-let voices;
-let currentVoice;
-
-function setup_voice_selector()
-{
-    const voiceSelect = document.getElementById('voices');
-    
-    lang_set = document.getElementById("lang_set").value;
-    const populateVoices = () => {
-        if(voiceSelect)
-        {
-            const availableVoices = speechSynthesis.getVoices();
-            voiceSelect.innerHTML = '';
-            let selected_done = false;
-    
-            availableVoices.forEach(voice => {
-            const option = document.createElement('option');
-            
-            let optionText = `${voice.name} (${voice.lang})`;
-    
-            if (voice.default) {
-                optionText += ' [default]';
-            }
-            
-            if((currentVoice === voice) || ((!selected_done) && (voice.lang==lang_set)))
-            {
-                currentVoice = voice;
-                option.selected = true;
-                selected_done = true;
-            }
-            option.textContent = optionText;
-            voiceSelect.appendChild(option);
-            });
-            voices = availableVoices;
-        }
-    };
-
-    populateVoices();
-    if (speechSynthesis.onvoiceschanged !== undefined) {
-        speechSynthesis.onvoiceschanged = populateVoices;
-    }
-    if(voiceSelect)
-    {
-        voiceSelect.addEventListener('change', event => {
-            const selectedIndex = event.target.selectedIndex;
-            currentVoice = voices[selectedIndex];
-        });
-    }
-}
-
-
 var convo_texts = [];
 var convo_sources = [];
 
 
-const localstorekey = "model";
 var convo_model = null;
 var last_bot_node = 0;
 var start_bot_node = 0;
@@ -332,13 +248,12 @@ function find_bot_reply_to_human(input_text)
     for (let k=0; k<possible_keys.length; k++)  //find the best match for human words
     {
         let this_key_match = 0;
-        let key_words = get_node_from_key(possible_keys[k]).text.toLowerCase().split(',');
-
-        for (let kw=0; kw<key_words.length; kw++)
+        let this_node_words = get_node_from_key(possible_keys[k]).possibilitiesList;
+        
+        for (let kw=0; kw<this_node_words.length; kw++)
         {
-            if(key_words[kw]=="*") this_key_match += 10;
-            else if(input_text.indexOf(key_words[kw])>=0) this_key_match += 1;
-
+            if(this_node_words[kw].text=="*") this_key_match += 10;
+            else if(input_text.indexOf(this_node_words[kw].text)>=0) this_key_match += 1;
         }
         if((this_key_match>0) && (this_key_match>=best_match_index))
         {
@@ -353,17 +268,15 @@ function find_bot_reply_to_human(input_text)
         last_bot_node = next_action_key;
         let next_node = get_node_from_key(next_action_key);
         let ret_reply = "I don't know what to say.";
-        if(next_node.reasonsList)
-        {
-            ret_reply = "";
-            for (let i=0;i<next_node.reasonsList.length;i++)
-            {
-                ret_reply += next_node.reasonsList[i].text;
-            }
-        }
-        else if(next_node.text)
+        
+        if(next_node.text)
         {
             ret_reply = next_node.text;
+        }
+        if(next_node.possibilitiesList)
+        {
+            for (let i=0; i<next_node.possibilitiesList.length;i++)
+                process_command(next_node.possibilitiesList[i].text);
         }
         if(next_node.category=="UndesiredEvent" || next_node.category=="DesiredEvent")
         {
@@ -428,19 +341,26 @@ function get_node_from_key(key)
     return {category:"Error",text:"XYZ"};
 }
 
-function load_convo_model()
+function load_convo_model(recursive=false)
 {
-    let stored_model = window.localStorage.getItem(localstorekey);
-    if(!stored_model)
+    
+    console.log(default_model_url, local_model_id);
+    let stored_model = window.localStorage.getItem(local_model_id);
+    if((!stored_model) && (!recursive))
     {
-        
         document.getElementById("msg").innerText = "Loading bot...";
-        DS.model_load_from_url(null, true).then(function ()
+        DS.model_load_from_url(default_model_url, local_model_id, true).then(function ()
         {
             convo_texts.push("Using default conversation model.");
             convo_sources.push(1);
-            load_convo_model();
-        });
+            load_convo_model(true);
+        }).catch((e) => {document.getElementById("msg").innerText = "Error: " + e;});
+    }
+    
+    let lang_set = window.localStorage.getItem('convo_lang');
+    if(!lang_set)
+    {
+        window.localStorage.setItem('convo_lang', 'en-US');
     }
 
     if(stored_model)
@@ -458,7 +378,7 @@ function load_convo_model()
                 //convo_sources.push(1);
                 start_bot_node = convo_model.nodeDataArray[i].key;
                 last_bot_node = start_bot_node;
-                //load_frame();
+                //update_chatbox();
                 bot_says(convo_model.nodeDataArray[i].text);
                 document.getElementById("msg").innerText = "Bot started";
                 break;
@@ -468,3 +388,29 @@ function load_convo_model()
 }
 
 
+export function voice_enabled(isChecked=document.getElementById("voice_enable_check").isChecked)
+{
+    if(isChecked)
+    {
+        
+        const SpeechRecognition =  window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (typeof SpeechRecognition !== "undefined")
+        {
+            voiced = isChecked;
+            document.getElementById("speechbox").readOnly = true;
+            document.getElementById("msg").innerText = "Voiced conversation enabled";
+        }
+        else
+        {
+            document.getElementById("voice_enable_check").checked = false;
+            voiced = false;
+            document.getElementById("msg").innerText = "Your browser doesn't support Speech Recognition.";
+        }
+    }
+    else
+    {
+        voiced = isChecked;
+        document.getElementById("speechbox").readOnly = false;
+        document.getElementById("msg").innerText = "Voiced conversation disabled";
+    }
+}

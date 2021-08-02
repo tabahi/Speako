@@ -113,24 +113,23 @@
     <div class="topnav">
       <a  class="w3-hover-deep-purple w3-text-green" href="https://github.com/tabahi/Speako">#</a>
       <a  class="w3-right w3-hover-deep-orange w3-text-lime" href="./design.htm">Design</a>
-      <h5 id="app_title" class="w3-margin-left w3-text-white">Bot Conversation Test</h5>
+      <h5 id="app_title" class="w3-margin-left w3-text-white">Chatbot Speako</h5>
   </div>
 
 
   <div class="w3-container w3-bottombar w3-border-dark-gray"> <!-- Main body container -->
 
       <div class="FixedHeightContainer w3-animate-zoom w3-center">
+
           <p>Conversation</p>
           <div class="ChatContent" id="chatdiv"> </div>
+
           <input type="text" id="speechbox" class="w3-dark-input w3-round-large w-small w3-border w3-border-blue w3-padding" style="width: 99%;max-width: 310px; margin-top: 5px;" onkeypress="Speako.chat_key_press(event)">
         
           <input type="button" id="send_button" onclick="Speako.send_btn_click()" value="Send" class="w3-button w3-wide w3-blue w3-padding w3-round w3-small" disabled>
-      </div>
+  </div>
 
-    
-
-   
-
+  
     <div class="w3-row w3-center w3-animate-right">
         <p id="msg">Loading...</p>
         
@@ -140,24 +139,12 @@
       
       <div class="w3-row-padding w3-center w3-animate-left">     <!-- Buttons -->
         
-        <input class="w3-check" id="voice_enable_check" title="Use speech recognition and synthesis instead of writing text." type="checkbox" onchange="Speako.voice_select_change(this.checked)">
+        <input class="w3-check" id="voice_enable_check" title="Use speech recognition and synthesis instead of writing text." type="checkbox" onchange="Speako.voice_enabled(this.checked)">
         <label for="voice_enable_check" title="Use speech recognition and synthesis instead of only texts.">Voice</label>
           <input type="button" id="start_button" onclick="Speako.start_btn_click()" value="Start" class="w3-button w3-wide w3-green w3-padding w3-round w3-margin-left" disabled>
         
       </div>
       <div class="w3-row w3-center w3-padding-small w3-animate-left">
-        <select name="lang_set" id="lang_set" class="w3-dark-input " style="width: 99%;max-width: 80px; margin-top: 5px;">
-          <option value="top_head" disabled>Recognition Language</option>
-          <option value="en-US" selected>English-US</option>
-          <option value="en-GB">English-GB</option>
-          <option value="en">English</option>
-          <option value="es">Spanish</option>
-          <option value="ar">Arabic</option>
-          <option value="fr">French</option>
-          <option value="ru">Russian</option>
-          <option value="it">Italian</option>
-          <option value="ja-JP">Japanese</option>
-          <option value="zh-CN">Chinese-CN</option></select>
         <select name="voices" id="voices" class="w3-dark-input " style="width: 99%;max-width: 310px; margin-top: 5px;"></select>
       </div>
       
