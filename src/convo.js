@@ -30,9 +30,8 @@ export function ConvoSetup(local_model='convo_model', model_url='./model.json')
 function process_command(event_node_text)
 {
     console.log(event_node_text);
-    if(event_node_text.indexOf('='))
-        if(event_node_text.indexOf('URL')>=0)   //URL command
-            window.location.replace(event_node_text.split('=')[1], '_blank');
+    if(event_node_text.indexOf('URL')>=0)   //URL command
+        window.location.replace(event_node_text.split('=')[1], '_blank');
 
 }
 
@@ -238,11 +237,11 @@ function find_bot_reply_to_human(input_text)
 {
     let best_match_index = 0;
     let best_match_key = 0;
-    let possible_keys = get_next_node_key(last_bot_node, "Human");
+    let possible_keys = get_next_node_key(last_bot_node, ["Human"]);
 
     if(possible_keys.length<=0) //dead end
     {
-        return "This session is over. Please restart to start again.";
+        return "This session is over. Please restart to start again.<br>[No possible human responses after the last sentence by bot.] [在机器人的最后一句话之后没有可能的人类反应。]";
     }
 
     for (let k=0; k<possible_keys.length; k++)  //find the best match for human words
@@ -253,33 +252,58 @@ function find_bot_reply_to_human(input_text)
         for (let kw=0; kw<this_node_words.length; kw++)
         {
             if(this_node_words[kw].text=="*") this_key_match += 10;
-            else if(input_text.indexOf(this_node_words[kw].text)>=0) this_key_match += 1;
+            else if(input_text.indexOf(this_node_words[kw].text)>=0)
+            {
+                this_key_match += 1;
+                if(this_node_words[kw].text.indexOf(' ') > 0)
+                this_key_match += 5;
+            }
+            
         }
         if((this_key_match>0) && (this_key_match>=best_match_index))
         {
             best_match_index = this_key_match;
             best_match_key = possible_keys[k];
+            //console.log(get_node_from_key(best_match_key).possibilitiesList, best_match_index);
         }
     }
 
     if(best_match_index>0)  //has matching node
     {
-        let next_action_key = get_next_node_key(best_match_key)[0]; //ignoring multiple options for now
+        let next_action_keys = get_next_node_key(best_match_key, ["DesiredEvent"]); 
+
+        if(next_action_keys.length < 1)
+        next_action_keys = get_next_node_key(best_match_key, ["Bot"]);
+
+        if(next_action_keys.length < 1)
+        next_action_keys = get_next_node_key(best_match_key, ["UndesiredEvent"]);
+
+        if(next_action_keys.length < 1)
+        return "I don't know what to say<br>[Missing bot node or wrong node connected next to human response.] [缺少机器人回复或连接到人类响应旁边的错误节点。]";
+
+        let next_action_key = next_action_keys[0];
+
+        if(next_action_keys.length > 1) //has multiple possible bot nodes, select randomly
+        {
+            let rand = Math.floor(Math.random() * (next_action_keys.length-0.01));
+            next_action_key = next_action_keys[rand];
+        }
+
         last_bot_node = next_action_key;
         let next_node = get_node_from_key(next_action_key);
-        let ret_reply = "I don't know what to say.";
-        
+
+        let ret_reply = "[Empty bot node] [空机器人响应]";
         if(next_node.text)
-        {
             ret_reply = next_node.text;
-        }
-        if(next_node.possibilitiesList)
-        {
-            for (let i=0; i<next_node.possibilitiesList.length;i++)
-                process_command(next_node.possibilitiesList[i].text);
-        }
+            
         if(next_node.category=="UndesiredEvent" || next_node.category=="DesiredEvent")
         {
+            if(next_node.possibilitiesList)
+            {
+                for (let i=0; i<next_node.possibilitiesList.length;i++)
+                    if(next_node.possibilitiesList.indexOf('='))
+                        process_command(next_node.possibilitiesList[i].text);
+            }
             document.getElementById("msg").innerText = "Session over";
             flag_set(0);
         }
@@ -288,13 +312,12 @@ function find_bot_reply_to_human(input_text)
     }
     else    //fallback
     {
-        let fallbacks = get_next_node_key(last_bot_node, "Bot fallback");
+        let fallbacks = get_next_node_key(last_bot_node, ["Bot fallback"]);
         if(fallbacks.length > 0)
         {
-            console.log("has fallback");
             for (let k=0; k<fallbacks.length; k++)
             {
-                if(get_next_node_key(fallbacks[k], "Human").length > 0) 
+                if(get_next_node_key(fallbacks[k], ["Human"]).length > 0) 
                 {
                     console.log("fallback has next");
                     last_bot_node = fallbacks[k];   //only move to this node if has nodes next to it.
@@ -303,11 +326,11 @@ function find_bot_reply_to_human(input_text)
             }
             return get_node_from_key(fallbacks[0]).text;
         }
-        else return "I don't understand.";  //global fallback
+        else return "I don't understand. [Bot fallback response is missing after this node.] [在此节点之后缺少机器人的回退响应。]";  //global fallback
     }
 }
 
-function get_next_node_key(from_key, category=null)
+function get_next_node_key(from_key, categories=null)
 {
     
     let possible_keys = [];
@@ -316,9 +339,9 @@ function get_next_node_key(from_key, category=null)
     {
             if(convo_model.linkDataArray[n].from==from_key) 
             {
-                if(category)
+                if(categories)
                 {
-                    if(get_node_from_key(convo_model.linkDataArray[n].to).category==category)
+                    if(categories.indexOf(get_node_from_key(convo_model.linkDataArray[n].to).category) > -1)
                     possible_keys.push(convo_model.linkDataArray[n].to);
                 }
                 else
@@ -368,6 +391,7 @@ function load_convo_model(recursive=false)
         stored_model = JSON.parse(stored_model);
         //stored_model.linkDataArray
         //console.log(stored_model.nodeDataArray);
+        let has_bot_start = false;
         for (let i=0; i<stored_model.nodeDataArray.length; i++)
         {
             if(stored_model.nodeDataArray[i].category == "Bot Start")
@@ -381,9 +405,16 @@ function load_convo_model(recursive=false)
                 //update_chatbox();
                 bot_says(convo_model.nodeDataArray[i].text);
                 document.getElementById("msg").innerText = "Bot started";
+                has_bot_start = true;
                 break;
             }
         }
+        if(!has_bot_start)
+        {
+            bot_says("[Bot Start node not found] [找不到机器人启动消息]");
+            flag_set(0);
+        }
+        
     }
 }
 
