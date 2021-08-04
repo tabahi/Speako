@@ -473,13 +473,26 @@ export function model_load_from_url(model_url, mem_model_id, local_save=false)
     });
 }
 
+function download()
+{
+  let text = document.getElementById('mySavedModel').value;
 
+  let fileBlob = new Blob([text], {type: "application/octet-binary"});
+
+  let link = document.createElement("a");
+  link.setAttribute("href", URL.createObjectURL(fileBlob));
+  link.setAttribute("download", "model.txt");
+  link.appendChild(document.createTextNode("Save file"));
+  document.body.appendChild(link);
+  link.click();
+}
 export function DS_btn(btn_name)
 {
     if(btn_name=="layout") layout();
     else if(btn_name=="save") save();
     else if(btn_name=="load") load();
     else if(btn_name=="reset") reset();
+    else if(btn_name=="download") download();
 }
 
 
@@ -487,4 +500,5 @@ export function DS_lang_change(lang_val)
 {
   window.localStorage.setItem('convo_lang', lang_val);
 }
+
 
