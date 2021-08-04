@@ -195,7 +195,7 @@ export function DesignerSetup(local_model='convo_model', model_url='./model.json
         $(go.Shape, "RoundedRectangle",
           {
             fill: "#D1D1D1",
-            portId: "", fromLinkable: false, toLinkable: true, cursor: "pointer", fromEndSegmentLength: 40
+            portId: "", fromLinkable: true, toLinkable: true, cursor: "pointer", fromEndSegmentLength: 40
           }),
         $(go.TextBlock, "Bot fallback", textStyle(),
           new go.Binding("text", "text").makeTwoWay())
