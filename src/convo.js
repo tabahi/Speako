@@ -321,6 +321,9 @@ function find_bot_reply_to_human(input_text)
         next_action_keys = get_next_node_key(best_match_key, ["Bot"]); //then check normal bot nodes
 
         if(next_action_keys.length < 1)
+        next_action_keys = get_next_node_key(best_match_key, ["Bot Start"]); //then check if has to go back to start
+
+        if(next_action_keys.length < 1)
         next_action_keys = get_next_node_key(best_match_key, ["UndesiredEvent"]); //then check UndesiredEvent
 
         if(next_action_keys.length < 1)
