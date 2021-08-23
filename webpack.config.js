@@ -1,5 +1,6 @@
 const path = require('path');
 const url = require('url');
+const webpack = require('webpack');
 
 module.exports = {
   entry: './src/index.js',
@@ -26,6 +27,7 @@ module.exports = {
     }
   },
   mode : 'production',
+
 };
 /*
 

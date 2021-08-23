@@ -3,7 +3,9 @@
 
 const DS = require('./design.js');
 const SP = require('./speech.js');
+const pinyin = require("pinyin"); //https://github.com/hotoo/pinyin
 
+var lang_set = 'en-US';
 var speaker_turn = false;
 var voiced = false;
 export var flag = 0;    //state change tracking flag
@@ -17,6 +19,7 @@ export function ConvoSetup(local_model='convo_model', model_url='./model.json')
     default_model_url = model_url;
     local_model_id = local_model;
     console.log("Using model: ", default_model_url, local_model_id);
+    setup_lang();
     
     SP.SpeechSetup();
     
@@ -27,7 +30,7 @@ export function ConvoSetup(local_model='convo_model', model_url='./model.json')
 }
 
 
-function process_command(event_node_text)
+function process_command(event_node_text)   //green boxes call this function
 {
     console.log(event_node_text);
     if(event_node_text.indexOf('URL')>=0)   //URL command
@@ -108,7 +111,7 @@ function on_human_speech_response_end()
     else document.getElementById("speechbox").value = "";
 }
 
-function human_speech_response(e)
+function human_speech_response(e)   //human speech response recognized
 {
     const speechbox = document.getElementById("speechbox");
     speechbox.value = "";
@@ -129,11 +132,11 @@ function human_speech_response(e)
 }
 
 
-export function human_text_response(send_text)
+export function human_text_response(human_text_value)  //human text response
 {
-    if((speaker_turn) && (send_text.length>0))
+    if((speaker_turn) && (human_text_value.length>0))
     {
-        convo_texts.push(send_text);
+        convo_texts.push(human_text_value);
         convo_sources.push(2);
         flag_set(2);
         update_chatbox();
@@ -152,8 +155,9 @@ function intelli_respond()
     {
         if(convo_sources[i]==2) //latest reply from human
         {
-            const reply = find_bot_reply_to_human(convo_texts[i].toLowerCase());
-            bot_says(reply);
+            find_bot_reply_to_human(convo_texts[i]).then(reply =>{
+                bot_says(reply);
+            });
             break;
         }
     }
@@ -235,51 +239,92 @@ var start_bot_node = 0;
 
 function find_bot_reply_to_human(input_text)
 {
-    let best_match_index = 0;
-    let best_match_key = 0;
+    return new Promise((resolve, reject) => {
     let possible_keys = get_next_node_key(last_bot_node, ["Human"]);
 
     if(possible_keys.length<=0) //dead end
     {
-        return "This session is over. Please restart to start again.<br>[No possible human responses after the last sentence by bot.] [在机器人的最后一句话之后没有可能的人类反应。]";
+        resolve("This session is over. Please restart to start again.<br>[No possible human responses after the last sentence by bot.] [在机器人的最后一句话之后没有可能的人类反应。]");
+        return;
     }
+    
+    text_tokenize(input_text).then(human_words =>{
 
+    console.log("Human: ");
+    console.log(human_words);
+
+    
+    let node_scores = new Array(possible_keys.length).fill(0);
+    let node_token_waits = [];
+    
     for (let k=0; k<possible_keys.length; k++)  //find the best match for human words
     {
-        let this_key_match = 0;
-        let this_node_words = get_node_from_key(possible_keys[k]).possibilitiesList;
+        let this_node_subs = get_node_from_key(possible_keys[k]).possibilitiesList;
         
-        for (let kw=0; kw<this_node_words.length; kw++)
+        
+        for (let nt=0; nt<this_node_subs.length; nt++)
         {
-            if(this_node_words[kw].text=="*") this_key_match += 10;
-            else if(input_text.indexOf(this_node_words[kw].text)>=0)
+
+            for (let hw=0; hw<human_words.length; hw++)
+            if(human_words[hw].length>0)
+            for (let hsh=0; hsh < human_words[hw].length; hsh++)  //multiple possible pinyin
             {
-                this_key_match += 1;
-                if(this_node_words[kw].text.indexOf(' ') > 0)
-                this_key_match += 5;
+                node_token_waits.push(new Promise((resolve, reject) => {
+                    text_tokenize(this_node_subs[nt].text).then(node_words =>{
+                        //console.log("Node: ");
+                        //console.log(node_words);
+                        
+                        
+                        for (let kw=0; kw<node_words.length; kw++)
+                        if(node_words[kw].length>0)
+                        {
+                            for (let kwh=0; kwh<node_words[kw].length; kwh++)  //multiple possible pinyin
+                            if(node_words[kw][kwh]==human_words[hw][hsh])
+                            {
+                                node_scores[k] += 2/(node_words.length*0.5);
+                                console.log(node_words[kw][kwh], human_words[hw][hsh], node_scores[k]);
+                            }
+                            else if(node_words[kw][kwh]=="*") node_scores[k] += 12;
+                        }
+
+                        resolve(true);
+
+                    });
+                }));
             }
             
         }
-        if((this_key_match>0) && (this_key_match>=best_match_index))
-        {
-            best_match_index = this_key_match;
-            best_match_key = possible_keys[k];
-            //console.log(get_node_from_key(best_match_key).possibilitiesList, best_match_index);
-        }
     }
 
-    if(best_match_index>0)  //has matching node
+    
+
+
+    Promise.all(node_token_waits).then((values) => {
+
+    let best_match_score = 0;
+    let best_match_key = 0;
+
+    for (let k=0; k<possible_keys.length; k++)
+    if((node_scores[k]>0) && (node_scores[k]>=best_match_score))
     {
-        let next_action_keys = get_next_node_key(best_match_key, ["DesiredEvent"]); 
+        best_match_score = node_scores[k];
+        best_match_key = possible_keys[k];
+        //console.log(get_node_from_key(best_match_key).possibilitiesList);
+    }
+
+    if(best_match_score>0)  //has matching node
+    {
+        //console.log(best_match_score, best_match_key);
+        let next_action_keys = get_next_node_key(best_match_key, ["DesiredEvent"]);    //first check DesiredEvent 
 
         if(next_action_keys.length < 1)
-        next_action_keys = get_next_node_key(best_match_key, ["Bot"]);
+        next_action_keys = get_next_node_key(best_match_key, ["Bot"]); //then check normal bot nodes
 
         if(next_action_keys.length < 1)
-        next_action_keys = get_next_node_key(best_match_key, ["UndesiredEvent"]);
+        next_action_keys = get_next_node_key(best_match_key, ["UndesiredEvent"]); //then check UndesiredEvent
 
         if(next_action_keys.length < 1)
-        return "I don't know what to say<br>[Missing bot node or wrong node connected next to human response.] [缺少机器人回复或连接到人类响应旁边的错误节点。]";
+        resolve( "I don't know what to say<br>[Missing bot node or wrong node connected next to human response.] [缺少机器人回复或连接到人类响应旁边的错误节点。]");
 
         let next_action_key = next_action_keys[0];
 
@@ -291,11 +336,12 @@ function find_bot_reply_to_human(input_text)
 
         last_bot_node = next_action_key;
         let next_node = get_node_from_key(next_action_key);
+        
 
         let ret_reply = "[Empty bot node] [空机器人响应]";
         if(next_node.text)
             ret_reply = next_node.text;
-            
+        
         if(next_node.category=="UndesiredEvent" || next_node.category=="DesiredEvent")
         {
             if(next_node.possibilitiesList)
@@ -308,26 +354,75 @@ function find_bot_reply_to_human(input_text)
             flag_set(0);
         }
         
-        return ret_reply;
+        resolve(ret_reply);
+        return;
     }
     else    //fallback
     {
         let fallbacks = get_next_node_key(last_bot_node, ["Bot fallback"]);
+        
         if(fallbacks.length > 0)
         {
+            let fall_back_index = 0;
             for (let k=0; k<fallbacks.length; k++)
             {
                 if(get_next_node_key(fallbacks[k], ["Human"]).length > 0) 
                 {
                     console.log("fallback has next");
                     last_bot_node = fallbacks[k];   //only move to this node if has nodes next to it.
-                    return get_node_from_key(fallbacks[k]).text;
+                    fall_back_index = k;
+                    break;
                 }
             }
-            return get_node_from_key(fallbacks[0]).text;
+            if(get_node_from_key(fallbacks[fall_back_index]).text)
+            resolve( get_node_from_key(fallbacks[fall_back_index]).text);
+            else resolve("I don't have any words. [Bot fallback response is empty.] [回退响应没有词。]");
+            return;
         }
-        else return "I don't understand. [Bot fallback response is missing after this node.] [在此节点之后缺少机器人的回退响应。]";  //global fallback
+        else
+        resolve("I don't understand. [Bot fallback response is missing after this node.] [在此节点之后缺少机器人的回退响应。]");  //global fallback
+        return;
     }
+}); //node_token_waits
+
+}); //human text tokens
+
+});
+}
+
+function text_tokenize(text_string)
+{
+    return new Promise((resolve, reject)=>{
+    if(lang_set=='zh-CN')
+    {
+        let pinYin_text = pinyin(text_string, { numbered: true, segmented: true, heteronym: true, style: pinyin.STYLE_NORMAL });
+        for(let i=0;i<pinYin_text.length;i++) //further break segments by spaces
+        {
+            for(let h=0;h<pinYin_text[i].length;h++)
+            {
+                let pyn_tok = pinYin_text[i][h].replace(",", " ").replace(".", " ").replace("?", " ").replace("-", " ").replace("？", " ").replace("。", " ").split(/[\s, ]+/);
+                if(pyn_tok.length>1)
+                {
+                    for(let p=0;p<pyn_tok.length;p++) if(pyn_tok[p].length>0) pinYin_text[i].push(pyn_tok[p]);
+                }
+            }
+        }
+        resolve(pinYin_text);
+    }
+    else
+    {
+        let text_tok = text_string.toLowerCase();
+        if(text_tok.indexOf("not ")>=0) text_tok = text_tok.replace("not ", "not&");
+        text_tok = text_tok.replace(",", " ").replace(".", " ").replace("?", " ").replace("-", " ").replace("？", " ").replace("。", " ").split(/[\s, ]+/);
+        let tok_ret = [];
+
+        if(text_tok.length>0)   //arrays of single word arrays tok_ret=[['word1'],['word2']]
+        {
+            for(let p=0;p<text_tok.length;p++) if(text_tok[p].length>0) tok_ret.push([text_tok[p]]);
+        }
+        resolve(tok_ret);
+    }
+});
 }
 
 function get_next_node_key(from_key, categories=null)
@@ -380,11 +475,7 @@ function load_convo_model(recursive=false)
         }).catch((e) => {document.getElementById("msg").innerText = "Error: " + e;});
     }
     
-    let lang_set = window.localStorage.getItem('convo_lang');
-    if(!lang_set)
-    {
-        window.localStorage.setItem('convo_lang', 'en-US');
-    }
+    setup_lang();
 
     if(stored_model)
     {
@@ -416,6 +507,17 @@ function load_convo_model(recursive=false)
         }
         
     }
+}
+
+function setup_lang()
+{
+    lang_set = window.localStorage.getItem('convo_lang');
+    if(!lang_set)
+    {
+        window.localStorage.setItem('convo_lang', 'en-US');
+    }
+    let lang_show = lang_set; if(lang_show=="zh-CN") lang_show = "中文";
+    document.getElementById("lang_set").innerText = "(" + lang_show + ")";
 }
 
 
