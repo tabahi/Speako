@@ -1,5 +1,6 @@
 
 
+//add a bot pass by node
 
 const DS = require('./design.js');
 const SP = require('./speech.js');
