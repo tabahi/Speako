@@ -3,7 +3,7 @@
   "copiesArrayObjects": true,
   "nodeDataArray": [
 {"category":"Bot Start","key":-1,"loc":"0 317.9885762508459","text":"Hello, How are you?"},
-{"category":"Human","possibilitiesList":[{"text":"Hello"},{"text":"Hi"},{"text":"Good"},{"text":"grea"}],"key":-4,"loc":"259.117603309229 159.14999999999998"},
+{"category":"Human","possibilitiesList":[{"text":"Hello"},{"text":"Hi"},{"text":"Good"},{"text":"great"}],"key":-4,"loc":"259.117603309229 159.14999999999998"},
 {"category":"Bot","text":"That's great. Would you like some music for good vibes?","loc":"448.64985912015095 192.98857625084597","key":-3},
 {"category":"Bot fallback","key":-15,"loc":"232.58534749830756 317.988576250846","text":"I don't understand"},
 {"category":"Human","possibilitiesList":[{"text":"bad"},{"text":"terrible"},{"text":"not good"},{"text":"not great"}],"loc":"259.11760330922885 409.15","key":-24},
