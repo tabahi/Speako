@@ -1,13 +1,15 @@
 const path = require('path');
 const url = require('url');
 const webpack = require('webpack');
-var WebpackPwaManifest = require('webpack-pwa-manifest')
+var WebpackPwaManifest = require('webpack-pwa-manifest');
+const WorkboxPlugin = require('workbox-webpack-plugin');
+
 
 module.exports = {
   entry: './src/index.js',
   output: {
     filename: 'main.js',
-    path: path.resolve(__dirname, 'dist'),
+    path: path.resolve(__dirname),
     libraryTarget: 'var',
     library: 'Speako',
   },
@@ -33,7 +35,32 @@ module.exports = {
           purpose: 'maskable'
         }
       ]
+    }),
+    new WorkboxPlugin.GenerateSW({
+      // Do not precache images
+      exclude: [/\.(?:png|jpg|jpeg|svg)$/],
+
+      // Define runtime caching rules.
+      runtimeCaching: [{
+        // Match any request that ends with .png, .jpg, .jpeg or .svg.
+        urlPattern: /\.(?:png|jpg|jpeg|svg)$/,
+
+        // Apply a cache-first strategy.
+        handler: 'CacheFirst',
+
+        options: {
+          // Use a custom cache name.
+          cacheName: 'images',
+
+          // Only cache 10 images.
+          expiration: {
+            maxEntries: 10,
+          },
+        },
+      }],
     })
+
+
   ],
   devServer: {
     host: '127.0.0.1',
@@ -51,8 +78,7 @@ module.exports = {
       index: url.parse('/index.htm').pathname
     }
   },
-  mode : 'development',
-  devtool: 'inline-source-map',
+  mode : 'production',
 
 };
 /*
