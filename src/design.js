@@ -1,5 +1,4 @@
 
-
 const go = require('gojs');
 var myDiagram;
 var $;
