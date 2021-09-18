@@ -26,7 +26,8 @@ module.exports = {
       index: url.parse('/index.htm').pathname
     }
   },
-  mode : 'production',
+  mode : 'development',
+  devtool: 'inline-source-map',
 
 };
 /*
