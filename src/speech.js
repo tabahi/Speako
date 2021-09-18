@@ -1,4 +1,4 @@
-var SpeechRecognitionx = (window.hasOwnProperty('webkitSpeechRecognition')) ? webkitSpeechRecognition: SpeechRecognition;
+var SpeechRecognitionx = (window.hasOwnProperty('webkitSpeechRecognition')) ? webkitSpeechRecognition: ( (window.hasOwnProperty('SpeechRecognition')) ? SpeechRecognition : null);
 var SpeechGrammarListx =  (window.hasOwnProperty('webkitSpeechGrammarList')) ? webkitSpeechGrammarList: window.SpeechGrammarList;
 var SpeechRecognitionEvent = (window.hasOwnProperty('webkitSpeechRecognitionEvent')) ?webkitSpeechRecognitionEvent:SpeechRecognitionEvent;
 
