@@ -1,0 +1,29 @@
+body {
+    background-color: black;
+    padding: 15px;
+    font-family: cursive;
+    color: white;
+    font-size: 30px
+}
+
+#circlein {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    justify-content: center;
+    box-shadow: 0px -2px 15px #E0FF94;
+}
+
+.obj {
+
+    display: flex;
+    justify-content: center;
+    height: 100%;
+
+}
+
+.mic-icon {
+    height: 30px;
+    position: absolute;
+    margin: 21px;
+}
