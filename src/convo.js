@@ -34,8 +34,8 @@ export function ConvoSetup(local_model='convo_model', model_url='./model.json')
 function process_command(event_node_text)   //green boxes call this function
 {
     console.log(event_node_text);
-    if(event_node_text.indexOf('URL')>=0)   //URL command
-        window.location.replace(event_node_text.split('=')[1], '_blank');
+    if(event_node_text.indexOf('URL=')>=0)   //URL command
+        window.location.replace(event_node_text.slice(event_node_text.indexOf('URL=')+4), '_blank');
 
 }
 
