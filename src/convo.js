@@ -522,7 +522,7 @@ function setup_lang()
     lang_set = window.localStorage.getItem('convo_lang');
     if(!lang_set)
     {
-        window.localStorage.setItem('convo_lang', 'en-US');
+        window.localStorage.setItem('convo_lang', lang_set);
     }
     let lang_show = lang_set; if(lang_show=="zh-CN") lang_show = "中文";
     document.getElementById("lang_set").innerText = "(" + lang_show + ")";
