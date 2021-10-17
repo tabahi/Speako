@@ -6,7 +6,7 @@ const DS = require('./design.js');
 const SP = require('./speech.js');
 const pinyin = require("pinyin"); //https://github.com/hotoo/pinyin
 
-var lang_set = 'en-US';
+var lang_set = 'zh-CN';
 var speaker_turn = false;
 var voiced = false;
 export var flag = 0;    //state change tracking flag
