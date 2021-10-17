@@ -7,6 +7,7 @@ const SP = require('./speech.js');
 const pinyin = require("pinyin"); //https://github.com/hotoo/pinyin
 
 var lang_set = 'zh-CN';
+const init_lang = 'zh-CN';
 var speaker_turn = false;
 var voiced = false;
 export var flag = 0;    //state change tracking flag
@@ -522,7 +523,8 @@ function setup_lang()
     lang_set = window.localStorage.getItem('convo_lang');
     if(!lang_set)
     {
-        window.localStorage.setItem('convo_lang', lang_set);
+        window.localStorage.setItem('convo_lang', init_lang);
+        lang_set = window.localStorage.getItem('convo_lang');
     }
     let lang_show = lang_set; if(lang_show=="zh-CN") lang_show = "中文";
     document.getElementById("lang_set").innerText = "(" + lang_show + ")";
